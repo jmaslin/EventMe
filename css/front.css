@@ -1,0 +1,31 @@
+.vertical-center {
+  min-height: 50%;  /* Fallback for browsers do NOT support vh unit */
+  min-height: 50vh; /* These two lines are counted as one :-)       */
+
+  display: flex;
+  align-items: center;
+}
+
+#statusBtn {
+	padding: 50px;
+	margin-top: 20px;
+}
+
+#lastScan {
+	padding: 50px;
+}
+
+tr {
+	line-height: 35px;
+	min-height: 35px;
+	height: 35px;
+}
+
+#manualLookup {
+	padding-bottom: 50px;
+}
+
+.btn-man {
+	/*width: 50%;*/
+	display: inline-block;
+}

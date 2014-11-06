@@ -1,0 +1,390 @@
+<html>
+	<head>
+		<title>Scan</title>
+ 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>	
+ 		<script src="/js/bootstrap.js"></script>
+
+ 		<link href="/css/bootstrap.css" rel="stylesheet">
+ 		<link href="/css/front.css" rel="stylesheet">
+ 	</head>
+	<body>
+	<!-- HIDDEN INPUT GRABS SCANS. -->
+	<!-- CONTAINER FOR TOP OF PAGE -->
+	<p id="notLogged" class="row text-center">
+	You need to be logged in to use this page!
+	<button id="loginBtn" type="button" class="btn btn-primary keepFocus">Login</button>
+
+	</p>
+
+		<div class="container">
+			<div class="row">
+				<div class="col-sm-6 col-sm-offset-3 text-center">
+				 	<h1 class="jumbotron"><span class="pageTitle">Scanner</span></h1>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-6 col-sm-offset-3">
+					<input id="getScan" type="password" autocomplete="off">
+					<button id="manualLookupBtn" type="button" class="btn btn-primary btn-lg btn-block keepFocus">Manual Lookup</button>
+					<form id="manualLookup" role="form" autocomplete="off">
+						<input id="name" class="form-control keepFocus" type="text" placeholder="Lookup by name.">
+						<input id="number" class="form-control keepFocus" type="number" placeholder="Lookup by code.">
+						<div class="row">
+							<button id="manualLookupSubmit" type="button" class="btn btn-lg btn-man keepFocus btn-info">Submit Lookup</button>
+							<button id="cancel" type="button" class="btn btn-lg btn-man btn-info">Cancel</button>
+						</div>
+					</form>
+					<button id="statusBtn" type="button" class="btn btn-info btn-lg btn-block"><span id="statusSpan">Idle | Ready To Scan</span></button>
+				</div>
+			</div>
+			<div class="row text-center">
+				<div class="col-sm-6 col-sm-offset-3">
+					<hr><h2>Last Scan:  <span id="lastScanState" class="label label-default"></span></h2><hr>
+				</div>
+			</div>
+
+		</div>
+
+		<div id="mainContainer" class="vertical-center"> 
+  		<div class="container text-center">
+
+
+				<div class="row">
+					<div class="col-sm-6 col-sm-offset-3">
+						<table id="lastScans" class="table table-responsive text-center">
+
+						</table>	
+					</div>	
+				</div>
+
+				<!-- <div class="row">
+					<div id="status" class="lead"></div>
+				</div> -->
+			
+			</div>
+		</div>
+	</body>
+</html>
+
+<div id="loginModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <h3>Login</h3>			
+       </div>
+       <div class="modal-body">
+       	<p class="lead">Please swipe your ID to login.</p>
+   			<input id="getLoginScan" type="password" autocomplete="off">   
+       </div>
+       <div class="modal-footer">
+       	<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+       </div>
+		</div>
+	</div>
+</div>
+
+<script>
+
+// TODO: Scan an approved ID number to get started on scanning.
+
+// TODO: Save last 5 scans in database, have them fade out.
+// TODO: Prepends should be in <p> tags for formatting.
+
+// TODO: Instead of showing time scanned, have it real time update (1 second ago, 10 ssconds ago, 1 minute ago, etc)
+
+$(document).ready(function() {
+
+	$('.container').hide(); // Do not show any content yet. Wait for validated.
+
+	// TODO: No ajax calls will run unless logged in and verified by server (on server side).
+
+	loggedIn();
+
+});
+
+$('#loginBtn').click(function(e) {
+	$('#getLoginScan').css({
+		// position: 'absolute', 
+		// top: '-1000px'
+	});
+
+	$('#loginModal').modal('show');
+
+});
+
+$('#loginModal').on('shown.bs.modal', function(e) {
+
+	$('#getLoginScan').focus();
+	e.stopPropagation();
+});
+
+function onLoad() {
+
+	$('#notLogged').hide();
+	$('.container').show();
+
+  $('#getScan').css({
+  	position: 'absolute', 
+  	top: '-1000px'
+  });
+
+  $('#getScan').focus();
+  $('#manualLookup').hide();
+
+
+  console.log("SCAN STATUS: READY!");
+}
+
+function loggedIn() {
+
+	var loggedIn = false;
+
+	$.ajax({
+
+		type: "GET", 
+		url: "validate.php", 
+		data: "a=",
+		// async: false, 
+		success: function(data) {
+			if (data == 1) {
+				onLoad();
+				// loggedIn = true;
+			}
+			else {
+				console.log("loggedIn() | Not valid scanner.");
+			}
+		}
+
+
+	});
+
+	return loggedIn;
+}
+
+$(document).click(function(e){
+
+	console.log("Element not recognized, focus on getScan input.");
+  $('#getScan').focus();
+  $('#statusSpan').html("Idle | Ready To Scan");
+  $('#statusSpan').parent().addClass('btn-info');
+  $('#statusSpan').parent().removeClass('btn-warning');
+  $('#manualLookup').hide();
+});
+
+$('.keepFocus').click(function(e) {
+	$('#manualLookup').show();
+	$('#statusSpan').html("Manual Lookup Chosen");
+  $('#statusSpan').parent().addClass('btn-warning');
+  $('#statusSpan').parent().removeClass('btn-info');
+	e.stopPropagation(); // Do not contiune on to do document click function.
+	console.log("Button clicked.");
+});
+
+var typingTimer;                // Timer identiifer
+var doneTypingInterval = 150;  // Delay before submit.
+var keyCount = 0;
+
+$('#getScan').keyup(function(){
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(cardScanned, doneTypingInterval);
+});
+
+$('#getScan').keydown(function(e){
+  clearTimeout(typingTimer);
+  keyCount++;
+  $('#status').append(".");
+ 	 $('#statusSpan').html("SCANNING, PLEASE WAIT");
+ 	 $('#statusSpan').parent().addClass('btn-warning');
+ 	 $('#statusSpan').parent().removeClass('btn-info');
+
+ 	 $('#lastScanState').html("");
+});
+
+$('#getLoginScan').keyup(function() {
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(loginCardScanned, doneTypingInterval);
+});
+
+$('#getLoginScan').keydown(function(e) {
+	clearTimeout(typingTimer);
+});
+
+function loginCardScanned() {
+
+	var idNumber = $('#getLoginScan').val();
+	$('#getLoginScan').val("");
+
+	finalId = formatCheck(idNumber);
+
+	if (finalId != null) {
+		console.log("Valid ID Number");
+		$.ajax({
+			type: "GET", 
+			url: "validate.php", 
+			data: "id="+finalId, 
+			success: function(data) {
+				console.log("Data: "+data);
+				if (data == 1) {
+					$('#loginModal').modal('hide');
+					loggedIn(); // Still verify server var
+				}
+			}
+		});
+	}
+
+}
+
+
+function formatCheck(idNumber) { // Replace cardScanned check logic.
+
+	var finalId = null;
+	var end = "=00?";
+
+	if ((idNumber.indexOf(";") > -1) && (idNumber.indexOf(end) > -1)) {
+		idNumber = idNumber.replace(";", "");
+		idNumber = idNumber.replace(end, "");
+
+		if (idNumber.length == 8) {
+			finalId = idNumber;
+		}
+	}
+
+	return finalId;
+
+}
+
+function cardScanned() {
+
+	recognizedFormat = false;
+
+	var end = "=00?"; 
+
+	idNumber = $('#getScan').val();
+	$('#getScan').val(""); // Set up for next scan.
+	console.log(idNumber);
+
+	if (idNumber.length >  6) { // 6 is arbitrary number, accounts for possible accidental key strokes.
+		console.log(idNumber);
+		if ((idNumber.indexOf(";") > -1) && (idNumber.indexOf(end) > -1)) {
+			// DEFAULT ID FORMAT
+			idNumber = idNumber.replace(";", "");
+			idNumber = idNumber.replace(end, "");
+
+			recognizedFormat = true;
+		}
+
+		if (recognizedFormat) {
+			// GREAT, SEARCH BY ID AND FIND TICKET
+		  console.log("SCAN STATUS: RECOGNIZED ID FORMAT, LOOKUP IN PROGRESS!");
+	 		$('#statusSpan').html("Lookup In Progress!");
+
+			// PERFORM AJAX LOOKUP
+			$.ajax({
+				type: "GET", 
+				url: "lookup.php", 
+				data: "id="+idNumber, 
+				success: function(data) {
+					user = $.parseJSON(data);
+					console.log("USER: "+user.name);
+					console.log("LOOKUP STATUS: "+user.ticketStatus);
+					showStatus(user);
+				}
+
+			});
+			// SHOW INFO THEN "TAP/CLICK ANYWHERE TO DO NEXT SCAN | OR HAVE TIMEOUT"
+		}
+
+		else {
+			name = "Unknown User";
+			message = "Lookup failed, unrecognized format.";
+			type="danger";
+
+			addLastScan(name, message, type);
+
+			console.log("SCAN STATUS: LOOKUP FAILED. UNRECOGNIZED FORMAT.")
+			// OPTION TO MANUALLY ENTER NAME OR [SHORTCODE]
+		}
+	}
+	else {
+			console.log("SCAN STATUS: INPUT LESS THAN 6 CHARS, IGNORING.")
+	}
+	
+
+	readyToScan();
+}
+
+function addLastScan(name, message, type) {
+
+	$('#lastScans').prepend('<tr class='+type+'><td>'+showTime()+'</td><td>'+name+'</td><td>'+message+'</td></tr>');
+
+	if (type == "success") {
+		$('#lastScanState').html("Valid");
+		$('#lastScanState').addClass("label-success");
+		$('#lastScanState').removeClass("label-danger");
+	}
+	else if (type == "danger") {
+		$('#lastScanState').html("No Admittance");
+		$('#lastScanState').addClass("label-danger");
+		$('#lastScanState').removeClass("label-success");	
+	}
+
+}
+
+function readyToScan() {
+
+	 $('#status').append("<br>READY TO SCAN.<br>");
+	 $('#statusSpan').html("Idle | Ready To Scan");
+	 $('#statusSpan').parent().removeClass('btn-warning');
+ 	 $('#statusSpan').parent().addClass('btn-info');
+}
+
+function showStatus(user) {
+
+
+	if (user.ticketStatus == "regular") {
+		message = "Regular Ticket";
+		type="success";
+		// REG TICKET, ALLOW ENTRY
+
+	}
+	else if (user.ticketStatus == "vip") {
+		// VIP TICKET, ALLOW ENTRY
+		// TODO: Have special mode looking forr this as default, for the VIP line.
+		message = "VIP Ticket";
+	}
+
+
+	addLastScan(user.name, message, type);
+}
+
+function checkTime(i) {
+	if (i < 10) {
+		i = "0" + i;
+	}
+
+	return i;
+}
+
+function showTime() {
+
+	var today = new Date();
+	var h = today.getHours();
+	var m = today.getMinutes();
+	var s = today.getSeconds();
+
+	end = "am";
+
+	if (h > 12) {
+		h = h - 12;
+		end = "pm";
+	}
+	m = checkTime(m);
+	s = checkTime(s);
+
+	time = h+":"+m+":"+s+" "+end;
+
+	return time;
+}
+
+</script>
